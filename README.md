@@ -76,6 +76,10 @@ CI runs on every push and pull request, and checks:
 
 - formatting, type-aware lint, spelling, a type check of scripts and templates, the tests and a production build
 - `bun audit` over the whole lockfile, which also runs weekly, and GitHub's dependency review on pull requests
+- CodeQL code scanning of the app code and the workflows, which also runs weekly
+- the pull request title, which becomes the commit subject on `main`
+
+A ruleset keeps `main` to pull requests that pass all of these.
 
 The full write-up, with the layers, folder structure, domain model, mock API, state management and routing, is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). It ends with a short guide to [reading the code without knowing Vue](docs/ARCHITECTURE.md#reading-this-code-without-knowing-vue), including a React-to-Vue table.
 

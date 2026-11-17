@@ -1,0 +1,45 @@
+name: PR title
+
+# A pull request merges as a merge commit whose subject is its title, so
+# the title has to meet the same rules as a commit subject.
+on:
+  pull_request:
+    branches: [main]
+    # "edited" re-runs the check when only the title is fixed.
+    types: [opened, edited, synchronize, reopened]
+
+# The title comes with the event, so the job needs no token at all.
+permissions: {}
+
+jobs:
+  pr-title:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      # The title reaches the script through an environment variable, not
+      # an expression in the script, so a title can't run shell code.
+      - name: Check the title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # type(scope)!: summary, lowercase after the colon, no full stop.
+          # The types are the ones CONTRIBUTING.md lists.
+          types='feat|fix|refactor|perf|test|docs|style|build|ci|chore|revert'
+          pattern="^($types)(\([a-z-]+\))?!?: [^[:upper:][:space:]].*[^.]$"
+          status=0
+
+          if [[ ! $TITLE =~ $pattern ]]; then
+            echo "::error::The title doesn't follow 'type(scope): summary' from CONTRIBUTING.md."
+            status=1
+          fi
+
+          # GitHub appends " (#123)" to the title, and the whole subject
+          # has to fit in 50 characters.
+          subject="$TITLE (#$NUMBER)"
+          if (( ${#subject} > 50 )); then
+            echo "::error::The merge commit's subject would be ${#subject} characters. Shorten the title to $(( 50 - ${#subject} + ${#TITLE} )) or fewer."
+            status=1
+          fi
+
+          exit $status
