@@ -4,21 +4,31 @@
 
 Work on a branch off `main` named after the kind of change: `feat/`, `fix/`, `docs/`, `ci/` or `chore/`, followed by a short name. Open a pull request and fill in the template's sections.
 
-Pull requests land as **merge commits**, so every commit on the branch stays in `main`'s history. Before asking for review, make sure each commit is clean and follows the format below: no "wip" or "fix typo" commits.
+Pull requests land as **merge commits**, so every commit on the branch stays in `main`'s history. Squash and rebase merging are turned off. Before asking for review, make sure each commit is clean and follows the format below: no "wip" or "fix typo" commits.
 
-The pull request title follows the same commit format and is at most **44 characters**. It becomes the merge commit's subject with ` (#123)` appended, and the result has to stay within 50.
+The pull request title follows the same commit format. It becomes the merge commit's subject with ` (#123)` appended, and that subject has to stay within 50 characters, so a title can be at most **44** while pull request numbers have two digits. The `PR title` check fails the pull request until the title fits, and runs again as soon as the title is edited.
 
-`main` only changes through pull requests, and a pull request can merge once CI passes. The first commits, which built the app, are the one exception: an empty repository has no `main` to open a pull request against.
+A ruleset on `main` enforces the rest. `main` only changes through pull requests, and it can't be force-pushed or deleted. A pull request can merge once CI, the title check and CodeQL pass and every review thread is resolved, and its branch is deleted when it merges. The first commits, which built the app, are the one exception: an empty repository has no `main` to open a pull request against.
 
 ## Dependency updates
 
-Dependabot opens one pull request a month for minor and patch bumps and one for each major bump. It opens security fixes right away for GitHub Actions, but it can't for Bun packages. Shorten its title to 44 characters before merging if it runs over. Its commits keep GitHub's own message format, the one exception to the rules below.
+Dependabot opens one pull request a month for minor and patch bumps and one for each major bump. It opens security fixes right away for GitHub Actions, but it can't for Bun packages. Its titles usually run over the limit, so shorten the title before merging. Its commits keep GitHub's own message format, the one exception to the rules below.
 
 Two majors are held back in `.github/dependabot.yml`, each with its reason next to it: VueUse stays on the major Reka UI uses, and TypeScript stays on 6 until typescript-eslint accepts 7.
 
-GitHub's security alerts only see the packages listed in `package.json`, because its dependency graph doesn't read `bun.lock`. CI runs `bun audit` on the whole lockfile for every pull request and once a week, and fails on a high or critical advisory. When it does, `bun update` moves the packages you list. To refresh the ones underneath them too, delete `bun.lock`, run `bun install`, then run the checks below.
+GitHub's Dependabot alerts, for vulnerabilities and for malware, only see the packages listed in `package.json`, because its dependency graph doesn't read `bun.lock`. CI runs `bun audit` on the whole lockfile for every pull request and once a week, and fails on a high or critical advisory. When it does, `bun update` moves the packages you list. To refresh the ones underneath them too, delete `bun.lock`, run `bun install`, then run the checks below.
 
 New releases have to age before they come in. Dependabot waits a week before proposing one, and `bunfig.toml` keeps installs from taking a version less than three days old. Most malicious releases are pulled within that time. To take an urgent fix sooner, run `bun add <package> --minimum-release-age=0`.
+
+## Security checks
+
+CodeQL scans the TypeScript and the workflow files on every pull request, on each push to `main` and once a week. A pull request can't merge while it adds a high or critical security alert or a CodeQL error. Findings are listed under the repository's Security tab.
+
+Secret scanning blocks a push that contains a known kind of credential, such as an API token.
+
+Workflows pin each action to a full commit SHA, with its version in a comment, because a tag can be moved to different code. The repository's Actions settings refuse a workflow that uses a tag, and Dependabot keeps the pins current.
+
+To report a vulnerability in the project itself, follow [SECURITY.md](SECURITY.md).
 
 ## Commit messages
 
