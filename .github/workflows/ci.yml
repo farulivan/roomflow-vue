@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Weekly, so a new advisory against a dependency shows up even when
+  # nothing is being merged.
+  schedule:
+    - cron: "0 6 * * 1"
+
+# The jobs only read the code. A step that needs more asks for it itself.
+permissions:
+  contents: read
+
+# A new push to a pull request replaces its run that is still going.
+# Runs on main always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Actions are pinned to a commit, because a tag can be moved to
+      # different code. Dependabot keeps the pins and comments current.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Reads the pinned version from package.json's "packageManager" field,
+      # so CI and local installs always run the same Bun.
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Check formatting
+        run: bun run format:check
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Check spelling
+        run: bun run spell
+
+      - name: Type check
+        run: bun run typecheck
+
+      - name: Test
+        run: bun run test
+
+      - name: Build
+        run: bun run build
+
+  # GitHub's dependency graph reads package.json but not bun.lock, and
+  # Dependabot can't open security fixes for Bun. This checks every
+  # package in the lockfile against the advisory database.
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      # Reads bun.lock alone, so there is nothing to install first.
+      - name: Audit dependencies
+        run: bun audit --audit-level=high
+
+  # Fails a pull request that changes a package listed in package.json
+  # to a version with a known vulnerability. The audit job covers the
+  # packages underneath them.
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: moderate
+          fail-on-scopes: runtime, development

@@ -1,0 +1,43 @@
+version: 2
+updates:
+  - package-ecosystem: bun
+    directory: /
+    # Monthly keeps routine bumps to a couple of pull requests a month.
+    # Dependabot can't open security fixes for Bun, so the audit job in
+    # CI is what flags a vulnerable package.
+    schedule:
+      interval: monthly
+    # Waits a week after a release before proposing it. Most malicious
+    # releases are found and pulled within days, and a routine bump
+    # loses nothing by waiting.
+    cooldown:
+      default-days: 7
+    # Minor and patch bumps arrive together in one pull request. Majors
+    # still come one at a time, since they are the ones that break. The
+    # short group name keeps the commit subject within 50 characters.
+    groups:
+      minor:
+        update-types: [minor, patch]
+    ignore:
+      # Reka UI is built on VueUse 14. Staying on that major keeps one
+      # copy of VueUse in the bundle; remove this once Reka moves on.
+      - dependency-name: "@vueuse/core"
+        update-types: ["version-update:semver-major"]
+      # typescript-eslint accepts TypeScript below 6.1 only, so the
+      # type-aware lint rules can't run on TypeScript 7 yet.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+    commit-message:
+      prefix: build(deps)
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci(deps)
